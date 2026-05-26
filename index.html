@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RoadToMMA — Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0d0e10;
+    --surface: #16181c;
+    --surface2: #1e2126;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8e6e0;
+    --muted: #6b6d72;
+    --accent: #c8f060;
+    --accent2: #3d7aed;
+    --red: #e84040;
+    --amber: #f0a030;
+    --teal: #30c8a0;
+    --purple: #9b7fe8;
+    --font-display: 'Barlow Condensed', sans-serif;
+    --font-body: 'Barlow', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --r: 6px;
+    --r2: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; line-height: 1.5; min-height: 100vh; }
+  
+  .app { display: grid; grid-template-rows: auto 1fr; min-height: 100vh; }
+  
+  header { border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+  .logo { font-family: var(--font-display); font-size: 20px; font-weight: 700; letter-spacing: 0.05em; color: var(--accent); text-transform: uppercase; }
+  .logo span { color: var(--muted); font-weight: 400; }
+  .phase-badge { font-family: var(--font-mono); font-size: 11px; color: var(--muted); border: 1px solid var(--border2); border-radius: 20px; padding: 3px 10px; }
+
+  nav { display: flex; gap: 2px; padding: 12px 24px 0; border-bottom: 1px solid var(--border); }
+  .nav-btn { font-family: var(--font-display); font-size: 13px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 8px 16px; border: none; background: none; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: color .15s, border-color .15s; }
+  .nav-btn:hover { color: var(--text); }
+  .nav-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  main { padding: 24px; overflow-y: auto; }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* STAT CARDS */
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r2); padding: 14px 16px; }
+  .stat-label { font-size: 11px; color: var(--muted); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .stat-val { font-family: var(--font-display); font-size: 28px; font-weight: 700; line-height: 1; color: var(--text); }
+  .stat-val.accent { color: var(--accent); }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* SESSIONS */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .section-title { font-family: var(--font-display); font-size: 16px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text); }
+  .btn { font-family: var(--font-display); font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 8px 16px; border-radius: var(--r); border: 1px solid var(--border2); background: transparent; color: var(--text); cursor: pointer; transition: background .15s, border-color .15s; }
+  .btn:hover { background: var(--surface2); }
+  .btn.primary { background: var(--accent); color: #0d0e10; border-color: var(--accent); }
+  .btn.primary:hover { background: #b8e050; border-color: #b8e050; }
+  .btn.danger { color: var(--red); border-color: transparent; }
+  .btn.danger:hover { background: rgba(232,64,64,0.1); }
+  .btn.sm { font-size: 11px; padding: 5px 10px; }
+
+  /* FORM MODAL */
+  .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--r2); padding: 24px; width: 100%; max-width: 440px; }
+  .modal-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 20px; }
+  .form-row { margin-bottom: 14px; }
+  .form-label { font-size: 11px; color: var(--muted); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; display: block; }
+  .form-input { width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--r); color: var(--text); font-family: var(--font-body); font-size: 14px; padding: 9px 12px; outline: none; transition: border-color .15s; }
+  .form-input:focus { border-color: var(--accent); }
+  select.form-input option { background: var(--surface); }
+  .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+  /* SESSION LIST */
+  .session-list { display: flex; flex-direction: column; gap: 8px; }
+  .session-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r2); padding: 14px 16px; display: flex; align-items: center; gap: 14px; }
+  .session-disc { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 13px; font-weight: 700; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.04em; }
+  .session-info { flex: 1; min-width: 0; }
+  .session-disc-name { font-family: var(--font-display); font-size: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .session-meta { font-size: 12px; color: var(--muted); margin-top: 2px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .session-dur { font-family: var(--font-mono); font-size: 14px; font-weight: 500; color: var(--accent); flex-shrink: 0; }
+  .empty-state { text-align: center; padding: 48px 24px; color: var(--muted); }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.3; }
+  .empty-text { font-family: var(--font-display); font-size: 16px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  /* DISCIPLINAS */
+  .disc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .disc-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r2); padding: 16px; }
+  .disc-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .disc-name { font-family: var(--font-display); font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .disc-level { font-family: var(--font-mono); font-size: 11px; padding: 3px 8px; border-radius: 20px; border: 1px solid; }
+  .disc-stats { display: flex; gap: 16px; margin-bottom: 12px; }
+  .disc-stat { }
+  .disc-stat-val { font-family: var(--font-display); font-size: 20px; font-weight: 700; line-height: 1; }
+  .disc-stat-lbl { font-size: 10px; color: var(--muted); font-family: var(--font-mono); text-transform: uppercase; }
+  .progress-bar-bg { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; border-radius: 2px; transition: width .4s ease; }
+  .disc-xp { font-size: 11px; color: var(--muted); margin-top: 6px; font-family: var(--font-mono); }
+
+  /* FISICA */
+  .fisica-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .fisica-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r2); padding: 16px; }
+  .fisica-label { font-size: 11px; color: var(--muted); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .fisica-val { font-family: var(--font-display); font-size: 32px; font-weight: 700; line-height: 1; }
+  .fisica-unit { font-size: 14px; color: var(--muted); font-weight: 400; }
+  .fisica-change { font-size: 11px; margin-top: 4px; font-family: var(--font-mono); }
+  .fisica-change.up { color: var(--teal); }
+  .fisica-change.down { color: var(--red); }
+  .fisica-change.neutral { color: var(--muted); }
+  .fisica-history { margin-top: 12px; }
+  .fisica-hist-item { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .fisica-hist-item:last-child { border-bottom: none; }
+  .fisica-hist-date { color: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+
+  /* CHARTS */
+  .chart-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r2); padding: 16px; }
+  .chart-title { font-family: var(--font-display); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 14px; }
+  .chart-wrap { position: relative; height: 180px; }
+
+  /* NOTA */
+  textarea.form-input { resize: vertical; min-height: 70px; }
+
+  /* TAGS */
+  .tag { display: inline-block; font-family: var(--font-mono); font-size: 10px; padding: 2px 8px; border-radius: 20px; border: 1px solid var(--border2); color: var(--muted); }
+
+  /* SCROLL */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 2px; }
+
+  /* PHASE PROGRESS */
+  .phase-track { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r2); padding: 16px; margin-bottom: 20px; }
+  .phase-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .phase-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .phase-name { font-family: var(--font-display); font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; flex: 1; }
+  .phase-months { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+  .phase-prog-bg { height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; flex: 1; }
+  .phase-prog-fill { height: 100%; border-radius: 2px; }
+
+  .nota-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r); color: var(--text); font-family: var(--font-body); font-size: 13px; padding: 10px 12px; outline: none; resize: none; min-height: 60px; }
+  .nota-input:focus { border-color: var(--accent); }
+  .coach-chip { font-family: var(--font-mono); font-size: 11px; padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border2); color: var(--muted); cursor: pointer; background: transparent; transition: all .15s; }
+  .coach-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .coach-hist-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r2); padding: 14px 16px; margin-bottom: 8px; cursor: pointer; transition: border-color .15s; }
+  .coach-hist-item:hover { border-color: var(--border2); }
+  .coach-hist-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .coach-hist-disc { font-family: var(--font-display); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent); }
+  .coach-hist-date { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-left: auto; }
+  .coach-hist-preview { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .typing-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 1s ease-in-out infinite; margin: 0 2px; }
+  .typing-dot:nth-child(2) { animation-delay: .2s; }
+  .typing-dot:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%,100%{opacity:.2} 50%{opacity:1} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">RoadTo<span>MMA</span></div>
+    <div id="phase-badge" class="phase-badge">Fase 1 — Transición</div>
+  </header>
+  <nav>
+    <button class="nav-btn active" onclick="showView('dashboard')">Dashboard</button>
+    <button class="nav-btn" onclick="showView('sesiones')">Sesiones</button>
+    <button class="nav-btn" onclick="showView('disciplinas')">Disciplinas</button>
+    <button class="nav-btn" onclick="showView('fisica')">Física</button>
+    <button class="nav-btn" onclick="showView('coach')" style="color:var(--accent)">Coach IA</button>
+  </nav>
+  <main>
+
+    <!-- DASHBOARD -->
+    <div id="view-dashboard" class="view active">
+      <div class="stat-row" id="dash-stats"></div>
+      <div class="phase-track">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <span class="section-title">Progreso del Roadmap</span>
+          <span id="phase-pct" style="font-family:var(--font-mono);font-size:13px;color:var(--accent)">0%</span>
+        </div>
+        <div id="phase-rows"></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-title">Horas por semana (últimas 8)</div>
+          <div class="chart-wrap"><canvas id="chart-weekly"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Distribución por disciplina</div>
+          <div class="chart-wrap"><canvas id="chart-disc"></canvas></div>
+        </div>
+      </div>
+      <div class="section-header">
+        <span class="section-title">Últimas sesiones</span>
+      </div>
+      <div id="dash-recent"></div>
+    </div>
+
+    <!-- SESIONES -->
+    <div id="view-sesiones" class="view">
+      <div class="section-header">
+        <span class="section-title">Sesiones</span>
+        <button class="btn primary" onclick="openModal('session')">+ Nueva sesión</button>
+      </div>
+      <div id="session-list" class="session-list"></div>
+    </div>
+
+    <!-- DISCIPLINAS -->
+    <div id="view-disciplinas" class="view">
+      <div class="section-header">
+        <span class="section-title">Disciplinas</span>
+      </div>
+      <div id="disc-grid" class="disc-grid"></div>
+      <div class="chart-row">
+        <div class="chart-card" style="grid-column: 1/-1">
+          <div class="chart-title">Horas acumuladas por disciplina</div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chart-disc-bar"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FISICA -->
+    <div id="view-fisica" class="view">
+      <div class="section-header">
+        <span class="section-title">Métricas físicas</span>
+        <button class="btn primary" onclick="openModal('fisica')">+ Registrar medición</button>
+      </div>
+      <div id="fisica-grid" class="fisica-grid"></div>
+      <div class="chart-row">
+        <div class="chart-card">
+          <div class="chart-title">Evolución del peso (kg)</div>
+          <div class="chart-wrap"><canvas id="chart-peso"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Evolución del % grasa</div>
+          <div class="chart-wrap"><canvas id="chart-grasa"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COACH IA -->
+    <div id="view-coach" class="view">
+      <div style="margin-bottom:20px">
+        <div class="section-title" style="margin-bottom:6px">Coach IA</div>
+        <p style="font-size:13px;color:var(--muted);line-height:1.6">Contale lo que pasó en tu sesión — qué entrenaste, qué sintió raro, qué salió bien, qué no. El coach te da feedback específico y consejos para mejorar.</p>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:18px;margin-bottom:16px">
+        <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:140px">
+            <div class="form-label" style="margin-bottom:6px">Disciplina</div>
+            <select id="coach-disc" class="form-input">
+              <option value="">— general —</option>
+              <option value="bjj">BJJ</option>
+              <option value="wrestling">Wrestling</option>
+              <option value="muay_thai">Muay Thai</option>
+              <option value="boxeo">Boxeo</option>
+              <option value="kickboxing">Kickboxing</option>
+              <option value="judo">Judo</option>
+              <option value="mma">MMA Sparring</option>
+              <option value="fisico">Físico / S&C</option>
+            </select>
+          </div>
+          <div style="flex:1;min-width:140px">
+            <div class="form-label" style="margin-bottom:6px">Tipo de consulta</div>
+            <select id="coach-tipo" class="form-input">
+              <option value="devolucion">Devolución de sesión</option>
+              <option value="tecnica">Problema técnico</option>
+              <option value="estrategia">Estrategia de pelea</option>
+              <option value="fisica">Condición física</option>
+              <option value="mental">Aspecto mental</option>
+              <option value="planificacion">Planificación</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-label" style="margin-bottom:6px">Tu nota</div>
+        <textarea id="coach-input" placeholder="Ej: Hoy en BJJ estuve trabajando guard passing pero me cuesta mucho cuando el tipo tiene las piernas largas. Terminé frustrándome y forzando cosas. ¿Qué debería enfocar?" style="width:100%;min-height:100px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--font-body);font-size:14px;padding:10px 12px;outline:none;resize:vertical;line-height:1.6" oninput="this.style.borderColor=this.value?'var(--accent)':'var(--border2)'"></textarea>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap" id="coach-chips"></div>
+          <button class="btn primary" onclick="askCoach()" id="coach-btn" style="min-width:120px">Pedir feedback</button>
+        </div>
+      </div>
+
+      <div id="coach-response" style="display:none">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:18px;margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+            <div style="width:32px;height:32px;border-radius:50%;background:rgba(200,240,96,0.1);border:1px solid rgba(200,240,96,0.3);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--accent);font-family:var(--font-display);font-weight:700">C</div>
+            <div>
+              <div style="font-family:var(--font-display);font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em">Coach</div>
+              <div id="coach-resp-meta" style="font-size:11px;color:var(--muted);font-family:var(--font-mono)"></div>
+            </div>
+            <button class="btn sm" onclick="copyResponse()" style="margin-left:auto;font-size:11px">copiar</button>
+          </div>
+          <div id="coach-resp-text" style="font-size:14px;line-height:1.8;color:var(--text);white-space:pre-wrap"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap" id="coach-followups"></div>
+      </div>
+
+      <div id="coach-history-section" style="margin-top:24px">
+        <div class="section-header">
+          <span class="section-title" style="font-size:13px">Historial de consultas</span>
+          <button class="btn sm danger" onclick="clearCoachHistory()">limpiar</button>
+        </div>
+        <div id="coach-history"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- SESSION MODAL -->
+<div id="modal-session" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-title">Nueva sesión</div>
+    <div class="form-row">
+      <label class="form-label">Disciplina</label>
+      <select id="s-disc" class="form-input">
+        <option value="bjj">BJJ</option>
+        <option value="wrestling">Wrestling</option>
+        <option value="muay_thai">Muay Thai</option>
+        <option value="boxeo">Boxeo</option>
+        <option value="kickboxing">Kickboxing</option>
+        <option value="judo">Judo</option>
+        <option value="mma">MMA Sparring</option>
+        <option value="fisico">Físico / S&C</option>
+        <option value="cardio">Cardio</option>
+      </select>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">Fecha</label>
+        <input type="date" id="s-fecha" class="form-input">
+      </div>
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">Duración (min)</label>
+        <input type="number" id="s-dur" class="form-input" placeholder="90" min="10" max="480">
+      </div>
+    </div>
+    <div class="form-row" style="margin-top:14px">
+      <label class="form-label">Tipo de trabajo</label>
+      <select id="s-tipo" class="form-input">
+        <option value="técnica">Técnica</option>
+        <option value="sparring">Sparring / Rodada</option>
+        <option value="drilling">Drilling</option>
+        <option value="fuerza">Fuerza</option>
+        <option value="competencia">Competencia</option>
+        <option value="clase">Clase grupal</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Intensidad</label>
+      <select id="s-int" class="form-input">
+        <option value="1">1 — Técnica ligera</option>
+        <option value="2">2 — Moderada</option>
+        <option value="3" selected>3 — Normal</option>
+        <option value="4">4 — Alta</option>
+        <option value="5">5 — Máxima / competencia</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Nota (opcional)</label>
+      <textarea id="s-nota" class="form-input" placeholder="¿Qué trabajaste? ¿Algún insight?"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('session')">Cancelar</button>
+      <button class="btn primary" onclick="saveSession()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- FISICA MODAL -->
+<div id="modal-fisica" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-title">Registrar medición</div>
+    <div class="form-row">
+      <label class="form-label">Fecha</label>
+      <input type="date" id="f-fecha" class="form-input">
+    </div>
+    <div class="form-row-2">
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">Peso (kg)</label>
+        <input type="number" id="f-peso" class="form-input" placeholder="55.0" step="0.1">
+      </div>
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">% grasa corporal</label>
+        <input type="number" id="f-grasa" class="form-input" placeholder="12.0" step="0.1">
+      </div>
+    </div>
+    <div class="form-row-2" style="margin-top:14px">
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">VO2max (est.)</label>
+        <input type="number" id="f-vo2" class="form-input" placeholder="52" step="0.5">
+      </div>
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">Descanso FC (bpm)</label>
+        <input type="number" id="f-fc" class="form-input" placeholder="58">
+      </div>
+    </div>
+    <div class="form-row-2" style="margin-top:14px">
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">Flexibilidad (1-10)</label>
+        <input type="number" id="f-flex" class="form-input" placeholder="7" min="1" max="10">
+      </div>
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">Fuerza grip (kg)</label>
+        <input type="number" id="f-grip" class="form-input" placeholder="42">
+      </div>
+    </div>
+    <div class="form-row" style="margin-top:14px">
+      <label class="form-label">Notas</label>
+      <textarea id="f-nota" class="form-input" placeholder="Condición general, lesiones, etc."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('fisica')">Cancelar</button>
+      <button class="btn primary" onclick="saveFisica()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DISC_META = {
+  bjj:       { label: 'BJJ',        color: '#3d7aed', phase: 1, priority: 'alta',    baseHours: 0,   baseLabel: null },
+  wrestling: { label: 'Wrestling',  color: '#9b7fe8', phase: 1, priority: 'alta',    baseHours: 0,   baseLabel: null },
+  muay_thai: { label: 'Muay Thai',  color: '#e84040', phase: 1, priority: 'alta',    baseHours: 0,   baseLabel: null },
+  boxeo:     { label: 'Boxeo',      color: '#f0a030', phase: 0, priority: 'base',    baseHours: 1800, baseLabel: '~1800h previas (3 años)' },
+  kickboxing:{ label: 'Kickboxing', color: '#f0a030', phase: 0, priority: 'base',    baseHours: 156,  baseLabel: '~156h previas (1 año)' },
+  judo:      { label: 'Judo',       color: '#30c8a0', phase: 2, priority: 'media',   baseHours: 0,   baseLabel: null },
+  mma:       { label: 'MMA',        color: '#c8f060', phase: 2, priority: 'alta',    baseHours: 0,   baseLabel: null },
+  fisico:    { label: 'S&C',        color: '#6b6d72', phase: 0, priority: 'soporte', baseHours: 0,   baseLabel: null },
+  cardio:    { label: 'Cardio',     color: '#6b6d72', phase: 0, priority: 'soporte', baseHours: 0,   baseLabel: null },
+};
+
+const PHASES = [
+  { id:0, name:'Base Striker',       color:'#f0a030', months:'Tu base actual' },
+  { id:1, name:'Transición Grappling',color:'#3d7aed', months:'Meses 1–8' },
+  { id:2, name:'Integración MMA',    color:'#30c8a0', months:'Meses 9–20' },
+  { id:3, name:'Competencia Amateur',color:'#9b7fe8', months:'Meses 18–30' },
+  { id:4, name:'Especialización',    color:'#c8f060', months:'Año 3+' },
+];
+
+let state = { sessions: [], fisica: [] };
+
+function loadState() {
+  try { const s = localStorage.getItem('roadtomma_v1'); if(s) state = JSON.parse(s); } catch(e) {}
+}
+function saveState() {
+  try { localStorage.setItem('roadtomma_v1', JSON.stringify(state)); } catch(e) {}
+}
+
+loadState();
+
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  event.target.classList.add('active');
+  renderView(name);
+}
+
+function openModal(type) {
+  const today = new Date().toISOString().split('T')[0];
+  if(type==='session') {
+    document.getElementById('s-fecha').value = today;
+    document.getElementById('s-dur').value = '';
+    document.getElementById('s-nota').value = '';
+    document.getElementById('modal-session').classList.add('open');
+  } else {
+    document.getElementById('f-fecha').value = today;
+    ['f-peso','f-grasa','f-vo2','f-fc','f-flex','f-grip','f-nota'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('modal-fisica').classList.add('open');
+  }
+}
+function closeModal(type) {
+  document.getElementById('modal-'+type).classList.remove('open');
+}
+
+function saveSession() {
+  const disc = document.getElementById('s-disc').value;
+  const fecha = document.getElementById('s-fecha').value;
+  const dur = parseInt(document.getElementById('s-dur').value);
+  if(!fecha || !dur || dur < 5) { alert('Completá fecha y duración.'); return; }
+  state.sessions.unshift({
+    id: Date.now(),
+    disc,
+    fecha,
+    dur,
+    tipo: document.getElementById('s-tipo').value,
+    intensidad: parseInt(document.getElementById('s-int').value),
+    nota: document.getElementById('s-nota').value.trim(),
+  });
+  saveState();
+  closeModal('session');
+  renderAll();
+}
+
+function saveFisica() {
+  const fecha = document.getElementById('f-fecha').value;
+  if(!fecha) { alert('Ingresá la fecha.'); return; }
+  const entry = { id: Date.now(), fecha };
+  const fields = ['peso','grasa','vo2','fc','flex','grip'];
+  fields.forEach(f => { const v = parseFloat(document.getElementById('f-'+f).value); if(!isNaN(v)) entry[f] = v; });
+  entry.nota = document.getElementById('f-nota').value.trim();
+  state.fisica.unshift(entry);
+  saveState();
+  closeModal('fisica');
+  renderAll();
+}
+
+function deleteSession(id) {
+  if(!confirm('¿Eliminar esta sesión?')) return;
+  state.sessions = state.sessions.filter(s => s.id !== id);
+  saveState();
+  renderAll();
+}
+
+function renderAll() {
+  renderDashboard();
+  renderSesiones();
+  renderDisciplinas();
+  renderFisica();
+}
+
+function totalHours() {
+  return state.sessions.reduce((a,s) => a + s.dur, 0) / 60;
+}
+
+function discHours(disc) {
+  const logged = state.sessions.filter(s=>s.disc===disc).reduce((a,s)=>a+s.dur,0)/60;
+  return logged + (DISC_META[disc].baseHours || 0);
+}
+
+function discLoggedHours(disc) {
+  return state.sessions.filter(s=>s.disc===disc).reduce((a,s)=>a+s.dur,0)/60;
+}
+
+function getLevel(hours) {
+  if(hours < 20)   return { label: 'Iniciando',    pct: Math.min(hours/20,1)*15,          color:'#6b6d72' };
+  if(hours < 60)   return { label: 'Principiante', pct: 15+((hours-20)/40)*15,            color:'#f0a030' };
+  if(hours < 150)  return { label: 'Intermedio',   pct: 30+((hours-60)/90)*15,            color:'#3d7aed' };
+  if(hours < 350)  return { label: 'Avanzado',     pct: 45+((hours-150)/200)*15,          color:'#30c8a0' };
+  if(hours < 700)  return { label: 'Experto',      pct: 60+((hours-350)/350)*15,          color:'#9b7fe8' };
+  if(hours < 1500) return { label: 'Elite',        pct: 75+((hours-700)/800)*15,          color:'#c8f060' };
+  return            { label: 'Elite+',             pct: 90+Math.min((hours-1500)/1000,1)*10, color:'#c8f060' };
+}
+
+function currentPhase() {
+  const total = totalHours();
+  if(total < 50) return 1;
+  if(total < 200) return 2;
+  if(total < 400) return 3;
+  return 4;
+}
+
+function renderDashboard() {
+  const total = totalHours();
+  const sessions = state.sessions.length;
+  const last30 = state.sessions.filter(s => {
+    const d = new Date(s.fecha); const now = new Date();
+    return (now - d) / 86400000 <= 30;
+  });
+  const h30 = last30.reduce((a,s)=>a+s.dur,0)/60;
+
+  document.getElementById('dash-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Horas totales</div><div class="stat-val accent">${total.toFixed(1)}</div><div class="stat-sub">desde el inicio</div></div>
+    <div class="stat-card"><div class="stat-label">Sesiones</div><div class="stat-val">${sessions}</div><div class="stat-sub">registradas</div></div>
+    <div class="stat-card"><div class="stat-label">Últimos 30 días</div><div class="stat-val accent">${h30.toFixed(1)}h</div><div class="stat-sub">${last30.length} sesiones</div></div>
+    <div class="stat-card"><div class="stat-label">Promedio sesión</div><div class="stat-val">${sessions ? Math.round(state.sessions.reduce((a,s)=>a+s.dur,0)/sessions) : 0}<span style="font-size:14px;color:var(--muted)">min</span></div><div class="stat-sub">por sesión</div></div>
+  `;
+
+  const phase = currentPhase();
+  document.getElementById('phase-badge').textContent = `Fase ${phase} — ${PHASES[phase].name}`;
+  const phasePct = Math.min(Math.round((phase-1)/4*100 + (total%100)*0.5),100);
+  document.getElementById('phase-pct').textContent = Math.round(total/8)+'% completado';
+
+  const phaseRows = PHASES.map((p,i) => {
+    const done = i < phase;
+    const active = i === phase;
+    const pct = done ? 100 : active ? Math.min(Math.round(((total-[0,50,200,400][i]||0)/[50,150,200,200][i]||0)*100),99) : 0;
+    return `<div class="phase-row">
+      <div class="phase-dot" style="background:${done||active?p.color:'var(--surface2)'}"></div>
+      <div class="phase-name" style="color:${done?'var(--muted)':active?p.color:'var(--muted)'}">${p.name}</div>
+      <div class="phase-months">${p.months}</div>
+      <div class="phase-prog-bg" style="width:120px"><div class="phase-prog-fill" style="width:${pct}%;background:${p.color}"></div></div>
+    </div>`;
+  }).join('');
+  document.getElementById('phase-rows').innerHTML = phaseRows;
+
+  const recent = state.sessions.slice(0,3);
+  document.getElementById('dash-recent').innerHTML = recent.length
+    ? `<div class="session-list">${recent.map(sessionHTML).join('')}</div>`
+    : `<div class="empty-state"><div class="empty-icon">🥊</div><div class="empty-text">Sin sesiones aún</div></div>`;
+
+  renderWeeklyChart();
+  renderDiscPieChart();
+}
+
+function getWeekKey(dateStr) {
+  const d = new Date(dateStr);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(d.setDate(diff));
+  return monday.toISOString().split('T')[0];
+}
+
+function renderWeeklyChart() {
+  const ctx = document.getElementById('chart-weekly');
+  if(!ctx) return;
+  const weeks = {};
+  state.sessions.forEach(s => {
+    const wk = getWeekKey(s.fecha);
+    weeks[wk] = (weeks[wk]||0) + s.dur/60;
+  });
+  const sorted = Object.keys(weeks).sort().slice(-8);
+  const labels = sorted.map(w => { const d = new Date(w); return `${d.getDate()}/${d.getMonth()+1}`; });
+  const data = sorted.map(w => parseFloat(weeks[w].toFixed(1)));
+
+  if(window._chartWeekly) window._chartWeekly.destroy();
+  window._chartWeekly = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: '#c8f060', borderRadius: 4, borderSkipped: false }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#6b6d72', font: { family: 'DM Mono', size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#6b6d72', font: { family: 'DM Mono', size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+      }
+    }
+  });
+}
+
+function renderDiscPieChart() {
+  const ctx = document.getElementById('chart-disc');
+  if(!ctx) return;
+  const discs = Object.keys(DISC_META);
+  const data = discs.map(d => parseFloat(discHours(d).toFixed(1))).filter((_,i) => discHours(discs[i]) > 0);
+  const labels = discs.filter(d => discHours(d) > 0).map(d => DISC_META[d].label);
+  const colors = discs.filter(d => discHours(d) > 0).map(d => DISC_META[d].color);
+
+  if(window._chartDisc) window._chartDisc.destroy();
+  window._chartDisc = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, hoverOffset: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: { legend: { position: 'right', labels: { color: '#6b6d72', font: { family: 'DM Mono', size: 10 }, boxWidth: 10, padding: 8 } } }
+    }
+  });
+}
+
+function sessionHTML(s) {
+  const m = DISC_META[s.disc];
+  const initials = m.label.substring(0,3).toUpperCase();
+  const h = Math.floor(s.dur/60);
+  const min = s.dur % 60;
+  const durStr = h > 0 ? `${h}h ${min}m` : `${min}m`;
+  const intensity = '●'.repeat(s.intensidad) + '○'.repeat(5-s.intensidad);
+  return `<div class="session-item">
+    <div class="session-disc" style="background:${m.color}20;color:${m.color}">${initials}</div>
+    <div class="session-info">
+      <div class="session-disc-name">${m.label}</div>
+      <div class="session-meta">
+        <span>${s.fecha}</span>
+        <span>${s.tipo}</span>
+        <span style="color:${m.color};font-family:var(--font-mono);font-size:11px;letter-spacing:0">${intensity}</span>
+        ${s.nota ? `<span style="color:var(--muted);font-size:11px">${s.nota.substring(0,60)}${s.nota.length>60?'…':''}</span>` : ''}
+      </div>
+    </div>
+    <div class="session-dur">${durStr}</div>
+    <button class="btn danger sm" onclick="deleteSession(${s.id})">✕</button>
+  </div>`;
+}
+
+function renderSesiones() {
+  const el = document.getElementById('session-list');
+  if(!state.sessions.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🥋</div><div class="empty-text">Registrá tu primera sesión</div><p style="font-size:12px;color:var(--muted);margin-top:8px">Cada entrenamiento suma.</p></div>`;
+    return;
+  }
+  el.innerHTML = state.sessions.map(sessionHTML).join('');
+}
+
+function renderDisciplinas() {
+  const discs = Object.keys(DISC_META);
+  document.getElementById('disc-grid').innerHTML = discs.map(d => {
+    const m = DISC_META[d];
+    const hrs = discHours(d);
+    const logged = discLoggedHours(d);
+    const sessions = state.sessions.filter(s => s.disc===d).length;
+    const lvl = getLevel(hrs);
+    const baseBadge = m.baseLabel
+      ? `<div style="font-family:var(--font-mono);font-size:10px;color:#f0a030;background:rgba(240,160,48,0.1);border:1px solid rgba(240,160,48,0.25);border-radius:20px;padding:2px 8px;margin-bottom:10px;display:inline-block">+ ${m.baseLabel}</div>`
+      : '';
+    const hrsDisplay = m.baseHours
+      ? `<div class="disc-stat"><div class="disc-stat-val" style="color:${m.color}">${hrs.toFixed(0)}</div><div class="disc-stat-lbl">hrs totales</div></div>
+         <div class="disc-stat"><div class="disc-stat-val">${logged.toFixed(0)}</div><div class="disc-stat-lbl">hrs loggeadas</div></div>`
+      : `<div class="disc-stat"><div class="disc-stat-val" style="color:${m.color}">${hrs.toFixed(1)}</div><div class="disc-stat-lbl">horas</div></div>`;
+    return `<div class="disc-card">
+      <div class="disc-header">
+        <div class="disc-name" style="color:${m.color}">${m.label}</div>
+        <div class="disc-level" style="color:${lvl.color};border-color:${lvl.color}40;background:${lvl.color}10;font-family:var(--font-mono);font-size:10px">${lvl.label}</div>
+      </div>
+      ${baseBadge}
+      <div class="disc-stats">
+        ${hrsDisplay}
+        <div class="disc-stat"><div class="disc-stat-val">${sessions}</div><div class="disc-stat-lbl">sesiones</div></div>
+        <div class="disc-stat"><div class="disc-stat-val">${m.priority}</div><div class="disc-stat-lbl">prioridad</div></div>
+      </div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${lvl.pct.toFixed(1)}%;background:${m.color}"></div></div>
+      <div class="disc-xp">${Math.round(lvl.pct)}% hacia ${getNextLevel(hrs)}</div>
+    </div>`;
+  }).join('');
+
+  renderDiscBarChart();
+}
+
+function getNextLevel(hrs) {
+  if(hrs < 20)   return 'Principiante';
+  if(hrs < 60)   return 'Intermedio';
+  if(hrs < 150)  return 'Avanzado';
+  if(hrs < 350)  return 'Experto';
+  if(hrs < 700)  return 'Elite';
+  if(hrs < 1500) return 'Elite+';
+  return 'Elite+ ✓';
+}
+
+function renderDiscBarChart() {
+  const ctx = document.getElementById('chart-disc-bar');
+  if(!ctx) return;
+  const discs = Object.keys(DISC_META);
+  const labels = discs.map(d => DISC_META[d].label);
+  const data = discs.map(d => parseFloat(discHours(d).toFixed(1)));
+  const colors = discs.map(d => DISC_META[d].color);
+
+  if(window._chartDiscBar) window._chartDiscBar.destroy();
+  window._chartDiscBar = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 4, borderSkipped: false }] },
+    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#6b6d72', font: { family: 'DM Mono', size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#e8e6e0', font: { family: 'Barlow Condensed', size: 12 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderFisica() {
+  const fields = [
+    { key:'peso',  label:'Peso', unit:'kg', icon:'⚖' },
+    { key:'grasa', label:'Grasa corporal', unit:'%', icon:'📊' },
+    { key:'vo2',   label:'VO2max', unit:'ml/kg/min', icon:'🫁' },
+    { key:'fc',    label:'FC en reposo', unit:'bpm', icon:'❤' },
+    { key:'flex',  label:'Flexibilidad', unit:'/10', icon:'🤸' },
+    { key:'grip',  label:'Grip', unit:'kg', icon:'✊' },
+  ];
+
+  const latest = state.fisica[0] || {};
+  const prev = state.fisica[1] || {};
+
+  document.getElementById('fisica-grid').innerHTML = fields.map(f => {
+    const val = latest[f.key];
+    const prevVal = prev[f.key];
+    let changeHTML = '';
+    if(val !== undefined && prevVal !== undefined) {
+      const diff = (val - prevVal).toFixed(1);
+      const cls = (f.key==='fc'||f.key==='grasa') ? (diff<0?'up':'down') : (diff>0?'up':'down');
+      changeHTML = `<div class="fisica-change ${cls}">${diff>0?'+':''}${diff} desde última medición</div>`;
+    }
+    return `<div class="fisica-card">
+      <div class="fisica-label">${f.label}</div>
+      <div class="fisica-val">${val !== undefined ? val : '—'}<span class="fisica-unit"> ${f.unit}</span></div>
+      ${changeHTML}
+      <div class="fisica-history">
+        ${state.fisica.slice(0,3).map(e => e[f.key]!==undefined
+          ? `<div class="fisica-hist-item"><span>${e[f.key]} ${f.unit}</span><span class="fisica-hist-date">${e.fecha}</span></div>`
+          : ''
+        ).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  renderFisicaCharts();
+}
+
+function renderFisicaCharts() {
+  const entries = [...state.fisica].reverse();
+  const labels = entries.map(e => e.fecha);
+
+  const pesoCtx = document.getElementById('chart-peso');
+  const grasaCtx = document.getElementById('chart-grasa');
+
+  const chartOpts = (color) => ({
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#6b6d72', font: { family: 'DM Mono', size: 10 }, maxTicksLimit: 6 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+      y: { ticks: { color: '#6b6d72', font: { family: 'DM Mono', size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+    },
+    elements: { point: { radius: 4, backgroundColor: color, borderWidth: 0 }, line: { tension: 0.3 } }
+  });
+
+  if(pesoCtx) {
+    if(window._chartPeso) window._chartPeso.destroy();
+    window._chartPeso = new Chart(pesoCtx, {
+      type: 'line',
+      data: { labels, datasets: [{ data: entries.map(e=>e.peso??null), borderColor: '#c8f060', backgroundColor: 'rgba(200,240,96,0.08)', fill: true, spanGaps: true }] },
+      options: chartOpts('#c8f060')
+    });
+  }
+  if(grasaCtx) {
+    if(window._chartGrasa) window._chartGrasa.destroy();
+    window._chartGrasa = new Chart(grasaCtx, {
+      type: 'line',
+      data: { labels, datasets: [{ data: entries.map(e=>e.grasa??null), borderColor: '#3d7aed', backgroundColor: 'rgba(61,122,237,0.08)', fill: true, spanGaps: true }] },
+      options: chartOpts('#3d7aed')
+    });
+  }
+}
+
+function renderView(name) {
+  if(name==='dashboard') renderDashboard();
+  else if(name==='sesiones') renderSesiones();
+  else if(name==='disciplinas') renderDisciplinas();
+  else if(name==='fisica') renderFisica();
+  else if(name==='coach') renderCoach();
+}
+
+const QUICK_CHIPS = [
+  'Me costó el guard passing',
+  'El sparring estuvo intenso',
+  'Siento que no mejoro',
+  'Quiero trabajar el clinch',
+  'Problema con takedowns',
+  'Me cansé rápido',
+];
+
+function renderCoach() {
+  const chips = document.getElementById('coach-chips');
+  if(chips) chips.innerHTML = QUICK_CHIPS.map(c =>
+    `<button class="coach-chip" onclick="setChip('${c}')">${c}</button>`
+  ).join('');
+  renderCoachHistory();
+}
+
+function setChip(text) {
+  const input = document.getElementById('coach-input');
+  input.value = text;
+  input.style.borderColor = 'var(--accent)';
+  input.focus();
+}
+
+function buildContext() {
+  const totalH = totalHours().toFixed(1);
+  const sessions = state.sessions.length;
+  const last5 = state.sessions.slice(0,5).map(s =>
+    `- ${DISC_META[s.disc].label} (${s.dur}min, ${s.tipo}, intensidad ${s.intensidad}/5)${s.nota?' — "'+s.nota+'"':''}`
+  ).join('\n');
+  const discSummary = Object.keys(DISC_META).map(d => {
+    const h = discHours(d);
+    if(h < 1) return null;
+    return `${DISC_META[d].label}: ${h.toFixed(0)}h (${getLevel(h).label})`;
+  }).filter(Boolean).join(', ');
+  const fisica = state.fisica[0];
+  const fisicaStr = fisica
+    ? `Peso: ${fisica.peso||'?'}kg, grasa: ${fisica.grasa||'?'}%, FC reposo: ${fisica.fc||'?'}bpm`
+    : 'Sin datos físicos registrados';
+
+  return `Contexto del atleta:
+- Edad: 20 años, 55kg, 1.73m
+- Base: Boxeo Elite+ (~1800h, 3 años, 2h/día), Kickboxing Avanzado (~156h, 1 año)
+- Fase actual del roadmap: Transición al Grappling (aprendiendo BJJ, Wrestling, Muay Thai)
+- Total horas loggeadas en la app: ${totalH}h en ${sessions} sesiones
+- Disciplinas actuales: ${discSummary || 'recién empezando a registrar'}
+- Físico: ${fisicaStr}
+- Últimas 5 sesiones:
+${last5 || '(sin sesiones registradas aún)'}`;
+}
+
+async function askCoach() {
+  const input = document.getElementById('coach-input').value.trim();
+  if(!input) { document.getElementById('coach-input').style.borderColor = 'var(--red)'; return; }
+
+  const disc = document.getElementById('coach-disc').value;
+  const tipo = document.getElementById('coach-tipo').value;
+  const discLabel = disc ? DISC_META[disc]?.label : 'General';
+  const tipoLabels = { devolucion:'Devolución', tecnica:'Técnica', estrategia:'Estrategia', fisica:'Condición', mental:'Mental', planificacion:'Planificación' };
+
+  const btn = document.getElementById('coach-btn');
+  btn.disabled = true;
+  btn.textContent = 'Analizando...';
+
+  const respDiv = document.getElementById('coach-response');
+  const respText = document.getElementById('coach-resp-text');
+  const respMeta = document.getElementById('coach-resp-meta');
+  respDiv.style.display = 'block';
+  respMeta.textContent = `${discLabel} · ${tipoLabels[tipo]||tipo} · ${new Date().toLocaleDateString('es-AR')}`;
+  respText.innerHTML = `<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>`;
+
+  const context = buildContext();
+  const systemPrompt = `Sos un coach de artes marciales mixtas (MMA) experimentado. Tu rol es dar feedback honesto, específico y útil a un atleta joven que está haciendo la transición de striker (boxeo/kickboxing) a luchador completo de MMA.
+
+${context}
+
+Estilo de respuesta:
+- Directo y concreto, como hablaría un coach real en el gym
+- Máximo 3-4 puntos clave, bien desarrollados
+- Si menciona algo técnico, explicá el "por qué" detrás
+- Terminá siempre con 1-2 drills o ejercicios específicos para trabajar lo que mencionó
+- Usá español rioplatense natural (vos, te, hacé, etc.)
+- No uses asteriscos ni markdown. Usá numeración simple (1. 2. 3.) o saltos de línea para organizar
+- Sé honesto aunque sea difícil de escuchar — la condescendencia no ayuda a un fighter`;
+
+  const userMsg = `Consulta tipo: ${tipoLabels[tipo]||tipo}${disc ? ` (${discLabel})` : ''}
+
+${input}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMsg }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.map(b => b.text||'').join('') || 'No se pudo obtener respuesta.';
+
+    respText.textContent = text;
+
+    const followups = [
+      '¿Qué drill específico me recomendás para esta semana?',
+      '¿Cómo integro esto con mi base de boxeo?',
+      '¿Cuánto tiempo debería dedicarle?',
+    ];
+    document.getElementById('coach-followups').innerHTML = followups.map(f =>
+      `<button class="coach-chip" onclick="quickFollowup('${f.replace(/'/g,"\\'")}')">↗ ${f}</button>`
+    ).join('');
+
+    saveCoachEntry({ disc: discLabel, tipo: tipoLabels[tipo]||tipo, input, response: text, date: new Date().toISOString() });
+    renderCoachHistory();
+  } catch(e) {
+    respText.textContent = 'Error conectando con el coach. Verificá tu conexión.';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Pedir feedback';
+}
+
+function quickFollowup(text) {
+  document.getElementById('coach-input').value = text;
+  askCoach();
+}
+
+function copyResponse() {
+  const text = document.getElementById('coach-resp-text').textContent;
+  navigator.clipboard?.writeText(text);
+}
+
+function saveCoachEntry(entry) {
+  const history = getCoachHistory();
+  history.unshift(entry);
+  try { localStorage.setItem('roadtomma_coach', JSON.stringify(history.slice(0,30))); } catch(e) {}
+}
+
+function getCoachHistory() {
+  try { const s = localStorage.getItem('roadtomma_coach'); return s ? JSON.parse(s) : []; } catch(e) { return []; }
+}
+
+function clearCoachHistory() {
+  if(!confirm('¿Borrar todo el historial de consultas?')) return;
+  try { localStorage.removeItem('roadtomma_coach'); } catch(e) {}
+  renderCoachHistory();
+}
+
+function renderCoachHistory() {
+  const history = getCoachHistory();
+  const el = document.getElementById('coach-history');
+  if(!el) return;
+  if(!history.length) {
+    el.innerHTML = `<p style="font-size:12px;color:var(--muted);padding:12px 0">Tus consultas anteriores aparecen acá.</p>`;
+    return;
+  }
+  el.innerHTML = history.map((h,i) => `
+    <div class="coach-hist-item" onclick="expandHistory(${i})">
+      <div class="coach-hist-header">
+        <div class="coach-hist-disc">${h.disc}</div>
+        <div class="tag">${h.tipo}</div>
+        <div class="coach-hist-date">${new Date(h.date).toLocaleDateString('es-AR')}</div>
+      </div>
+      <div class="coach-hist-preview">${h.input.substring(0,100)}${h.input.length>100?'…':''}</div>
+      <div id="hist-expand-${i}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:13px;color:var(--text);line-height:1.7;white-space:pre-wrap">${h.response}</div>
+    </div>
+  `).join('');
+}
+
+function expandHistory(i) {
+  const el = document.getElementById(`hist-expand-${i}`);
+  if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+renderAll();
+</script>
+</body>
+</html>
